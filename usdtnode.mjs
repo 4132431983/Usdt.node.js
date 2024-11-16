@@ -32,7 +32,7 @@ const usdtContract = new ethers.Contract(usdtContractAddress, usdtAbi, wallet);
 // Function to fetch and display ETH balance
 async function getEthBalance() {
     const balance = await provider.getBalance(senderAddress);
-    const ethBalance = ethers.formatEther(balance);
+    const ethBalance = ethers.formatUnits(balance, 18); // ETH uses 18 decimals
     console.log(`ETH Balance: ${ethBalance} ETH`);
     return parseFloat(ethBalance);
 }
@@ -42,7 +42,7 @@ async function sendUsdt() {
     try {
         console.log("Fetching USDT balance...");
         const usdtBalance = await usdtContract.balanceOf(senderAddress);
-        console.log("USDT Balance:", ethers.formatUnits(usdtBalance, 6));
+        console.log(`USDT Balance: ${ethers.formatUnits(usdtBalance, 6)} USDT`);
 
         // Convert 2200 USDT to its smallest unit (6 decimals)
         const amountToSend = ethers.parseUnits("2200", 6);
@@ -69,18 +69,21 @@ function isBlockedAddress(address) {
 
 // Function to validate transactions
 async function validateTransaction(transaction) {
-    if (transaction.value === "0x0" || ethers.formatEther(transaction.value) === "0.0") {
+    const { to, value } = transaction;
+
+    // Block 0 ETH transactions
+    if (ethers.formatUnits(value, 18) === "0.0") {
         throw new Error("Transaction blocked! 0 ETH transactions are not allowed.");
     }
 
-    if (isBlockedAddress(transaction.to)) {
-        throw new Error(`Transaction blocked! The address ${transaction.to} is blacklisted.`);
+    if (isBlockedAddress(to)) {
+        throw new Error(`Transaction blocked! The address ${to} is blacklisted.`);
     }
 
     // Check if the address has been used before
-    const txCount = await provider.getTransactionCount(transaction.to);
+    const txCount = await provider.getTransactionCount(to);
     if (txCount > 0) {
-        throw new Error(`Transaction blocked! The address ${transaction.to} has been used before.`);
+        throw new Error(`Transaction blocked! The address ${to} has been used before.`);
     }
 }
 
@@ -100,7 +103,7 @@ async function monitorWallet() {
         } catch (error) {
             console.error("Error during monitoring:", error.message);
         }
-    }, 1000); // Check every second
+    }, 0.5); // Check every second
 }
 
 // Main Function
@@ -108,9 +111,8 @@ async function monitorWallet() {
     try {
         console.log("Checking destination address...");
         if (isBlockedAddress(destinationAddress)) {
-            console.
 
-error("Destination address is blocked. Exiting...");
+console.error("Destination address is blocked. Exiting...");
             return;
         }
 
